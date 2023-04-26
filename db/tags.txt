@@ -1,0 +1,32 @@
+sport
+	football
+	basketball
+	hockey
+	valleyball
+	chess
+video_games
+	shooters
+	strategy
+	action
+	rouge_like
+	rouge_lite
+	soils_like
+	RPG
+movies
+	blockbusters
+	horrors
+	comedy
+	tragedy
+	drama
+	western
+music
+	classics
+	jazz
+	soul
+	blues
+	rock
+	metal
+	edm
+	idm
+t
+	y
