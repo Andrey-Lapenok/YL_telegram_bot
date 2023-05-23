@@ -143,7 +143,6 @@ def get_state(person):
     # current_state = {}
     # for characteristic in a.current_state.split('|'):
     #     current_state[characteristic.split(':')[0]] = characteristic.split(':')[1]
-
     return json.loads(person.current_state)
 
 
