@@ -1,5 +1,4 @@
 import asyncio
-
 from telegram import *
 from telegram.ext import *
 from orm_support.all_db_models import *
@@ -46,8 +45,13 @@ async def get_one_poll(update, context):
     question = db_sess.query(Question).filter(Question.id == int(update.message.text)).first()
     set_state(author, {'state': 'working_on_poll', 'id': question.id, 'current_state': 'None'})
 
-    await update.message.reply_text(text=get_text_for_information_about_poll(question),
-                                    parse_mode='HTML', reply_markup=get_buttons(question))
+    if question.balance < question.check_per_person:
+        question.is_active = False
+        db_sess.commit()
+
+    mes = await update.message.reply_text(text=get_text_for_information_about_poll(question),
+                                          parse_mode='HTML', reply_markup=get_buttons(question))
+    change_state_characteristic(author, 'menu', mes.message_id)
 
 
 async def callback_handler_working_on_poll(update, context):
@@ -55,48 +59,34 @@ async def callback_handler_working_on_poll(update, context):
     data = get_data_from_button(query)['data'][0]
     author = db_sess.query(Author).filter(Author.telegram_id == query.message.chat_id).first()
     question = db_sess.query(Question).filter(Question.id == int(get_data_from_button(query)['data'][1])).first()
+    await asyncio.create_task(delete_messages(author))
     if not check_state({'state': 'working_on_poll'}, author.telegram_id, who=Author):
         await query.message.reply_text(text='Вы не можете начать новое действие, не закончив старое')
         await query.edit_message_text(text=get_text_for_information_about_poll(question), parse_mode='HTML')
         return
 
-    await asyncio.create_task(delete_messages(author))
-
-    if data == 'activate':
-        await set_activation(query, question, True)
-        return
-
-    elif data == 'deactivate':
-        await set_activation(query, question, False)
-        return
-
-    elif data == 'stop':
-        if question.title and question.text_of_question and question.additional_information:
-            await query.edit_message_text(text=get_text_for_information_about_poll(question), parse_mode='HTML')
-            set_state(author, {'state': 'waiting'})
-            return
-        else:
-            await context.bot.answer_callback_query(callback_query_id=query.id,
-                                                    text='Нельзя завершить процесс, так как не все поля заполнены',
-                                                    show_alert=True)
-            return
-
-    markup = ReplyKeyboardMarkup([['/stop_input_data_about_poll']], one_time_keyboard=False)
-    mes = await query.message.reply_text(
-        text="Нажмите на кнопку <b><i>/stop_input_data_about_poll</i></b>, если хотите прекратить ввод",
-        parse_mode='HTML', reply_markup=markup)
-    append_mes_to_delete(author, mes)
-
     all_functions = {'ch_title': callback_change_title, 'ch_text': callback_change_text,
-                     'ch_inf': callback_change_additional_information,
-                     'ch_tags': callback_change_needed_tags,
-                     'res_by_tags': callback_get_results_by_tags}
+                     'ch_inf': callback_change_additional_information, 'ch_tags': callback_change_needed_tags,
+                     'res_by_tags': callback_get_results_by_tags, 'activate': set_activation,
+                     'deactivate': set_activation, 'stop': stop_working_with_poll}
 
-    mes = await all_functions[data](query, author)
-    await query.edit_message_text(text=get_text_for_information_about_poll(question), parse_mode='HTML')
-
-    append_mes_to_delete(author, mes)
-    append_mes_to_delete(author, query.message)
+    mode, data = await all_functions[data](query, author)
+    if mode == 'ordinary':
+        markup = ReplyKeyboardMarkup([['/stop_input_data_about_poll']], one_time_keyboard=False)
+        mes = await query.message.reply_text(
+            text="Нажмите на кнопку <b><i>/stop_input_data_about_poll</i></b>, если хотите прекратить ввод",
+            parse_mode='HTML', reply_markup=markup)
+        append_mes_to_delete(author, mes)
+        if type(data['message']) == list:
+            for message in data['message']:
+                append_mes_to_delete(author, message)
+        else:
+            append_mes_to_delete(author, data['message'])
+        await query.edit_message_text(text=get_text_for_information_about_poll(question), parse_mode='HTML')
+    elif mode == 'stopping':
+        return
+    elif mode == 'change_activation':
+        return
 
 
 def get_buttons(question):
@@ -104,7 +94,7 @@ def get_buttons(question):
                 InlineKeyboardButton('Change text', callback_data=f'work_poll|ch_text|{question.id}')],
                [InlineKeyboardButton('Change additional information', callback_data=f'work_poll|ch_inf|{question.id}')],
                [InlineKeyboardButton('Change needed tags', callback_data=f'work_poll|ch_tags|{question.id}')]]
-    if question.border_date < datetime.datetime.now():
+    if question.border_date < datetime.datetime.now() or question.balance < question.check_per_person:
         pass
     elif not question.is_active:
         buttons.append([InlineKeyboardButton('Activate', callback_data=f'work_poll|activate|{question.id}')])
@@ -136,6 +126,8 @@ def get_text_for_information_about_poll(question):
            f'<b><i>Needed' \
            f' tags:</i></b> {question.needed_tags.replace(",", ", ") if question.needed_tags else "None"}\n' \
            f'<b><i>Balance:</i></b> {question.balance} rubles\n' \
+           f'<b><i>Money for one:</i></b> {question.check_per_person} rubles\n' \
+           f'<b><i>Remaining quantity:</i></b> {question.balance // question.check_per_person}\n' \
            f'<b><i>Results:</i></b>{results}'
 
 
@@ -151,19 +143,30 @@ async def text_handler_working_on_poll(update, context):
     await asyncio.create_task(delete_messages(author))
 
     current_state = get_state(author)['current_state']
-    mes = await all_functions[current_state](update, question)
-    append_mes_to_delete(author, mes)
+    mode, data = await all_functions[current_state](update, question)
 
-    change_state_characteristic(author, 'current_state', 'None')
-    await update.message.reply_text(text=get_text_for_information_about_poll(question),
-                                    parse_mode='HTML', reply_markup=get_buttons(question))
+    if mode == 'ordinary':
+        if type(data['message']) == list:
+            for message in data['message']:
+                append_mes_to_delete(author, message)
+        else:
+            append_mes_to_delete(author, data['message'])
+        change_state_characteristic(author, 'current_state', 'None')
+        bot = Bot(TOKEN_FOR_BUSINESSMEN)
+        await bot.editMessageText(get_text_for_information_about_poll(question), chat_id=update.message.chat_id,
+                                  message_id=get_state(author)['menu'], parse_mode='HTML',
+                                  reply_markup=get_buttons(question))
+    elif mode == 'invalid_text':
+        append_mes_to_delete(author, data['message'])
 
 
-async def set_activation(query, question, activate):
-    question.is_active = activate
+async def set_activation(query, author):
+    question = db_sess.query(Question).filter(Question.id == int(get_state(author)['id'])).first()
+    question.is_active = not question.is_active
     db_sess.commit()
     await query.edit_message_text(text=get_text_for_information_about_poll(question), parse_mode='HTML',
                                   reply_markup=get_buttons(question))
+    return 'change_activation', {}
 
 
 async def stop_input_data_about_poll(update, context):
@@ -174,5 +177,22 @@ async def stop_input_data_about_poll(update, context):
     change_state_characteristic(author, 'current_state', 'None')
     mes = await update.message.reply_text(text='Ввод прекращен')
     append_mes_to_delete(author, mes)
-    await update.message.reply_text(text=get_text_for_information_about_poll(question),
-                                    parse_mode='HTML', reply_markup=get_buttons(question))
+    bot = Bot(TOKEN_FOR_BUSINESSMEN)
+    await bot.editMessageText(get_text_for_information_about_poll(question), chat_id=update.message.chat_id,
+                              message_id=get_state(author)['menu'], parse_mode='HTML',
+                              reply_markup=get_buttons(question))
+
+
+async def stop_working_with_poll(update, author):
+    question = db_sess.query(Question).filter(Question.id == int(get_state(author)['id'])).first()
+    if question.title and question.text_of_question and question.additional_information:
+        bot = Bot(TOKEN_FOR_BUSINESSMEN)
+        await bot.editMessageText(get_text_for_information_about_poll(question),
+                                  chat_id=update.message.chat_id,
+                                  message_id=get_state(author)['menu'],
+                                  parse_mode='HTML')
+        set_state(author, {'state': 'waiting'})
+        return 'stopping', {}
+    else:
+        await update.answer(text='Нельзя завершить процесс, так как не все поля заполнены', show_alert=False)
+        return 'stopping', {}

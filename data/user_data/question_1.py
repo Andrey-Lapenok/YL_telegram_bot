@@ -22,10 +22,10 @@ def get_reply_markup(question, user, type):
                  for answer in answers]]
 
     if type == 'get_information':
-        buttons.append([InlineKeyboardButton('ℹ️informationℹ️', callback_data=f'information|{question.id}')])
+        buttons.append([InlineKeyboardButton('ℹ️informationℹ', callback_data=f'information|{question.id}')])
 
     elif type == 'delete_information':
-        buttons.append([InlineKeyboardButton('ℹ️delete informationℹ️', callback_data=f'd_information|{question.id}')])
+        buttons.append([InlineKeyboardButton('ℹ️delete informationℹ', callback_data=f'd_information|{question.id}')])
     return InlineKeyboardMarkup(buttons)
 
 
@@ -47,8 +47,12 @@ async def send_question_1(telegram_id, ordinarily=True):
     questions = []
     for question in db_sess.query(Question).filter(Question.is_active).all():
         if (user.polls_received is not None and str(question.id) not in user.polls_received.split(',')) or (
-                user.polls_received is None and get_vote_as_dict(question.id, user) is None):
+                user.polls_received is None and get_vote_as_dict(question.id, user) is None)\
+                and question.balance >= question.check_per_person:
             questions.append([question.id, check_tag_match(user, question)])
+        elif question.balance < question.check_per_person:
+            question.is_active = False
+            db_sess.commit()
 
     if not questions:
         if not ordinarily:
@@ -57,8 +61,7 @@ async def send_question_1(telegram_id, ordinarily=True):
 
     question = db_sess.query(Question).filter(Question.id == max(questions, key=lambda x: x[1])[0]).first()
     append_received_poll(user, question)
-    author = db_sess.query(Author).filter(Author.id == question.author).first()
-    author.balance -= question.check_per_person
+    question.balance -= question.check_per_person
     db_sess.commit()
 
     await bot.send_message(telegram_id, question.text_of_question, reply_markup=get_reply_markup(

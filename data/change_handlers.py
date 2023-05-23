@@ -32,12 +32,14 @@ async def append_tags(update, person):
     if new_tags:
         text += f'Записаны теги {", ".join(new_tags)}'
 
-    return await update.message.reply_text(text=text)
+    mes = await update.message.reply_text(text=text)
+    return 'ordinary', {'message': mes}
 
 
 async def remove_tags(update, person):
     if update.message.text == 'None':
-        return await update.message.reply_text(text='Ни один тег не был удален')
+        mes = await update.message.reply_text(text='Ни один тег не был удален')
+        return 'ordinary', {'message': mes}
 
     sorted_tags = sort_tags(update.message.text.replace(' ', ''))
     new_tags, old_tags = [], []
@@ -54,7 +56,8 @@ async def remove_tags(update, person):
     if person.tags:
         person.tags = ','.join(list(set(person.tags.split(',')) - set(old_tags)))
     else:
-        return await update.message.reply_text(text='Ни один тег не удален')
+        mes = await update.message.reply_text(text='Ни один тег не удален')
+        return 'ordinary', {'message': mes}
 
     db_sess.commit()
 
@@ -67,20 +70,23 @@ async def remove_tags(update, person):
     if old_tags:
         text += f'Удалены теги {", ".join(old_tags)}'
 
-    return await update.message.reply_text(text=text)
+    mes = await update.message.reply_text(text=text)
+    return 'ordinary', {'message': mes}
 
 
 async def append_answer(update, question):
     if question.answers:
         if update.message.text in list(map(lambda x: x.split(':')[0], question.answers.split('|'))):
-            return await update.message.reply_text(text=f'Вариант ответа <i><b>{update.message.text}</b></i>'
-                                                        f' уже существует')
+            mes = await update.message.reply_text(text=f'Вариант ответа <i><b>{update.message.text}</b></i>'
+                                                       f' уже существует')
+            return 'ordinary', {'message': mes}
 
         question.answers = '|'.join(question.answers.split('|') + [f'{update.message.text}:0'])
     else:
         question.answers = f'{update.message.text}:0'
     db_sess.commit()
-    return await update.message.reply_text(text=f'Записан новый вариант ответа {update.message.text}')
+    mes = await update.message.reply_text(text=f'Записан новый вариант ответа {update.message.text}')
+    return 'ordinary', {'message': mes}
 
 
 async def delete_answer(update, question):
@@ -95,64 +101,73 @@ async def delete_answer(update, question):
             question.answers = '|'.join(list(map(lambda x: f'{x["answer"]}:0', answers)))
             db_sess.commit()
 
-        return await update.message.reply_text(text=f'Вариант ответа был удален')
+        mes = await update.message.reply_text(text=f'Вариант ответа был удален')
 
     except ValueError:
-        return await update.message.reply_text(text=f'Вы введи данные в неккоректном формате,'
-                                                    f' неободимо было ввести целое число')
+        mes = await update.message.reply_text(text=f'Вы введи данные в неккоректном формате,'
+                                                   f' неободимо было ввести целое число')
     except IndexError:
-        return await update.message.reply_text(text=f'Вы ввели неккоректный индекс ответа,'
-                                                    f' ответа с таким индексом не существует')
+        mes = await update.message.reply_text(text=f'Вы ввели неккоректный индекс ответа,'
+                                                   f' ответа с таким индексом не существует')
+    finally:
+        return 'ordinary', {'message': mes}
 
 
 async def change_name(update, person):
     person.name = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Ваше имя изменено на <i><b>{person.name}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Ваше имя изменено на <i><b>{person.name}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_surname(update, person):
     person.surname = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Ваша фамилия изменена на <i><b>{person.surname}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Ваша фамилия изменена на <i><b>{person.surname}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_additional_information(update, person):
     person.additional_information = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Дополнительная информация изменена'
-                                                f' на <i><b>{person.additional_information}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Дополнительная информация изменена'
+                                               f' на <i><b>{person.additional_information}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_email(update, person):
     person.email = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Ваш email изменен на <i><b>{person.email}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Ваш email изменен на <i><b>{person.email}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_title(update, question):
     question.title = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Название изменено на <i><b>{question.title}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Название изменено на <i><b>{question.title}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_text(update, question):
     question.text_of_question = update.message.text
     db_sess.commit()
-    return await update.message.reply_text(text=f'Текст изменен на <i><b>{question.text_of_question}</b></i>',
-                                           parse_mode='HTML')
+    mes = await update.message.reply_text(text=f'Текст изменен на <i><b>{question.text_of_question}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
 
 
 async def change_needed_tags(update, question):
     if update.message.text == 'None':
         question.needed_tags = ''
         db_sess.commit()
-        return await update.message.reply_text(text='Теги не были выбраны')
+        mes = await update.message.reply_text(text='Теги не были выбраны')
+        return 'ordinary', {'message': mes}
 
     sorted_tags = sort_tags(update.message.text.replace(' ', ''))
     question.needed_tags = ','.join(sorted_tags['correct_tags'])
@@ -162,8 +177,9 @@ async def change_needed_tags(update, question):
     if sorted_tags['invalid_tags']:
         text_of_mes += f'Теги {", ".join(sorted_tags["invalid_tags"])} не существуют\n'
 
-    return await update.message.reply_text(text=text_of_mes + f'Записаны теги'
-                                                              f' {", ".join(sorted_tags["correct_tags"])}')
+    mes = await update.message.reply_text(text=text_of_mes + f'Записаны теги'
+                                                             f' {", ".join(sorted_tags["correct_tags"])}')
+    return 'ordinary', {'message': mes}
 
 
 async def change_tags(update, person):
@@ -175,43 +191,45 @@ async def change_tags(update, person):
     if sorted_tags['invalid_tags']:
         text_of_mes += f'Теги {", ".join(sorted_tags["invalid_tags"])} не существуют\n'
 
-    return await update.message.reply_text(text=text_of_mes + f'Записаны только теги'
-                                                              f' {", ".join(sorted_tags["correct_tags"])}')
+    mes = await update.message.reply_text(text=text_of_mes + f'Записаны только теги'
+                                                             f' {", ".join(sorted_tags["correct_tags"])}')
+    return 'ordinary', {'message': mes}
 
 
 async def change_waiting_time(update, person):
     try:
         person.waiting_time = float(update.message.text)
         db_sess.commit()
-        return await update.message.reply_text(text=f'Время между опросами изменено'
-                                                    f' на <i><b>{person.waiting_time}</b></i>',
-                                               parse_mode='HTML')
+        mes = await update.message.reply_text(text=f'Время между опросами изменено'
+                                                   f' на <i><b>{person.waiting_time}</b></i>',
+                                              parse_mode='HTML')
+        return 'ordinary', {'message': mes}
+
     except ValueError:
         mes = await update.message.reply_text(text=f'Вы ввели данные в неверном формате, нужно ввести'
                                                    f' только неотрицательное вещественное число минут')
         mes_2 = await update.message.reply_text(text='Введите время, которое будет проходить между'
                                                      ' отправками опросов вам')
-        change_state_characteristic(person, 'mes_to_delete',
-                                    ','.join(get_state(person)['mes_to_delete'].split(',') + [str(
-                                        mes.message_id)] + [str(mes_2.message_id)]))
-        return mes
+        append_mes_to_delete(person, mes_2)
+        return 'ordinary', {'message': mes}
 
 
 async def get_results_by_tags(update, question):
     sorted_tags = sort_tags(update.message.text.replace(' ', ''))
     text_of_mes = ''
-
+    mes = []
     if sorted_tags['invalid_tags']:
         text_of_mes += f'Теги {", ".join(sorted_tags["invalid_tags"])} не существуют\n'
 
-        await update.message.reply_text(text=text_of_mes)
+        mes.append(update.message.reply_text(text=text_of_mes))
 
     results = ''
     all_votes = get_all_votes_with_tags(question.id, sorted_tags['correct_tags'])
     number_of_votes = len(all_votes)
 
     if number_of_votes == 0:
-        return await update.message.reply_text(text=f'Нет ни одного голоса от человека с такими тегами')
+        _mes = await update.message.reply_text(text=f'Нет ни одного голоса от человека с такими тегами')
+        mes.append(_mes)
 
     else:
         for answer in list(map(lambda x: x['answer'], get_answers_as_list(question))):
@@ -219,47 +237,73 @@ async def get_results_by_tags(update, question):
             results += f'    {answer}:' \
                        f' {round(number_of_votes_answer / number_of_votes * 100, 2)}%\n'
 
-        return await update.message.reply_text(text=f'Results of people with'
+        _mes = await update.message.reply_text(text=f'Results of people with'
                                                     f' tags {", ".join(sorted_tags["correct_tags"])}:\n' + results)
+        mes.append(_mes)
+        return 'ordinary', {'message': mes}
+
+
+async def replenish_balance(update, person):
+    try:
+        amount = int(update.message.text)
+    except Exception:
+        mes = await update.message.reply_text(text='Вы ввели данные в неверном формате')
+        return 'ordinary', {'message': mes}
+
+    mes = await update.message.reply_text(text=f'Нажмите на кнопку и пополните баланс на {amount} рублей')
+    url = create_invoice(update.message.chat_id, amount, "author", mes.message_id)
+    markup = InlineKeyboardMarkup([[InlineKeyboardButton('Пополнить баланс', url=url)]])
+    bot = Bot(TOKEN_FOR_BUSINESSMEN)
+    await bot.edit_message_reply_markup(chat_id=update.message.chat_id, message_id=mes.message_id,
+                                        reply_markup=markup)
+    return 'replenishing', {}
 
 
 async def invalid_text(update, person):
-    return await update.message.reply_text(text=f'Мяу')
+    mes = await update.message.reply_text(text=f'Сначала нажмите на кнопку, если хотите изменить информацию о себе')
+    return 'invalid_text', {'message': mes}
 
 
 async def callback_change_name(query, person):
     change_state_characteristic(person, 'current_state', 'changing_name')
-    return await query.message.reply_text(text='Введите свое имя')
+    mes = await query.message.reply_text(text='Введите свое имя')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_surname(query, person):
     change_state_characteristic(person, 'current_state', 'changing_surname')
-    return await query.message.reply_text(text='Введите свою фамилию')
+    mes = await query.message.reply_text(text='Введите свою фамилию')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_title(query, person):
     change_state_characteristic(person, 'current_state', 'changing_title')
-    return await query.message.reply_text(text='Введите название опроса')
+    mes = await query.message.reply_text(text='Введите название опроса')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_text(query, person):
     change_state_characteristic(person, 'current_state', 'changing_text')
-    return await query.message.reply_text(text='Введите текст опроса')
+    mes = await query.message.reply_text(text='Введите текст опроса')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_additional_information(query, person):
     change_state_characteristic(person, 'current_state', 'changing_additional_information')
-    return await query.message.reply_text(text='Введите дополнительную иинформацию')
+    mes = await query.message.reply_text(text='Введите дополнительную информацию')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_email(query, person):
     change_state_characteristic(person, 'current_state', 'changing_email')
-    return await query.message.reply_text(text='Введите свой email')
+    mes = await query.message.reply_text(text='Введите свой email')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_waiting_time(query, person):
     change_state_characteristic(person, 'current_state', 'changing_waiting_time')
-    return await query.message.reply_text(text='Введите время, через которое вам будут присылаться опросы')
+    mes = await query.message.reply_text(text='Введите время, через которое вам будут присылаться опросы')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_change_needed_tags(query, person):
@@ -271,8 +315,7 @@ async def callback_change_needed_tags(query, person):
                                               ' на которых нацелен опрос (Если вы не хотите выбирать теги, введите'
                                               ' "None")')
     mes_file = await bot.send_document(query.message.chat_id, open(file_gen(), 'r'))
-    change_state_characteristic(person, 'mes_to_delete', f"{mes_file.message_id}")
-    return mes
+    return 'ordinary', {'message': [mes, mes_file]}
 
 
 async def callback_change_tags(query, person):
@@ -284,8 +327,7 @@ async def callback_change_tags(query, person):
                                               ' (Если вы не хотите выбирать теги, введите'
                                               ' "None")')
     mes_file = await bot.send_document(query.message.chat_id, open(file_gen(), 'r'))
-    change_state_characteristic(person, 'mes_to_delete', f"{mes_file.message_id}")
-    return mes
+    return 'ordinary', {'message': [mes, mes_file]}
 
 
 async def callback_append_tags(query, person):
@@ -293,8 +335,7 @@ async def callback_append_tags(query, person):
     bot = Bot(TOKEN)
     mes = await query.message.reply_text(text='Просмотрите файл и введите все качества, которые подходят к вам')
     mes_file = await bot.send_document(query.message.chat_id, open(file_gen(), 'r'))
-    append_mes_to_delete(person, mes_file)
-    return mes
+    return 'ordinary', {'message': [mes, mes_file]}
 
 
 async def callback_delete_tags(query, person):
@@ -303,8 +344,9 @@ async def callback_delete_tags(query, person):
     #     вас нет ни одного тега, следовательно ни один тег нельзя удалить')
 
     change_state_characteristic(person, 'current_state', 'removing_tags')
-    return await query.message.reply_text(text=f'Просмотрите ваши теги и напишите те, которые хотите удалить\n'
-                                               f'Ваши теги: {person.tags}')
+    mes = await query.message.reply_text(text=f'Просмотрите ваши теги и напишите те, которые хотите удалить\n'
+                                              f'Ваши теги: {person.tags}')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_get_results_by_tags(query, person):
@@ -313,15 +355,32 @@ async def callback_get_results_by_tags(query, person):
     mes = await query.message.reply_text(text='Просмотрите файл и введите все качества, которые подходят к людям,'
                                               ' ответы которых вы хотите посмотреть')
     mes_file = await bot.send_document(query.message.chat_id, open(file_gen(), 'r'))
-    append_mes_to_delete(person, mes_file)
-    return mes
+    return 'ordinary', {'message': [mes, mes_file]}
 
 
 async def callback_append_answer(query, person):
     change_state_characteristic(person, 'current_state', 'appending_answer')
-    return await query.message.reply_text(text='Введите новый вариант ответа')
+    mes = await query.message.reply_text(text='Введите новый вариант ответа')
+    return 'ordinary', {'message': mes}
 
 
 async def callback_delete_answer(query, person):
     change_state_characteristic(person, 'current_state', 'removing_answer')
-    return await query.message.reply_text(text='Введите порядковый номер ответа, который хотите удалить')
+    mes = await query.message.reply_text(text='Введите порядковый номер ответа, который хотите удалить')
+    return 'ordinary', {'message': mes}
+
+
+async def callback_replenish_balance(query, person):
+    change_state_characteristic(person, 'current_state', 'replenishing_balance')
+    mes = await query.message.reply_text(text='Введите сумму, которую хотите внести на ваш баланс (в рублях)')
+    return 'ordinary', {'message': mes}
+
+
+async def callback_working_with_data_update(update, author):
+    bot = Bot(TOKEN_FOR_BUSINESSMEN)
+    try:
+        await bot.editMessageText(get_text_of_data(author), chat_id=update.message.chat_id,
+                                  message_id=get_state(author)['menu'], parse_mode='HTML',
+                                  reply_markup=get_buttons(author))
+    finally:
+        pass

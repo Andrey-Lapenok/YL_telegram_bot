@@ -30,3 +30,6 @@ music
 	idm
 t
 	y
+alcohol
+	vodka
+		russian_vodka

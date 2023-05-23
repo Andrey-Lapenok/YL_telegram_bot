@@ -2,17 +2,21 @@ from orm_support.db_connect import *
 from orm_support.all_db_models import *
 from telegram import *
 from telegram.ext import *
+from yookassa import Configuration, Payment, Payout
 import csv
 import logging
 import json
+import uuid
 
 
 TOKEN = '6067604242:AAEMX9qetuikGF5TexuKXPxJfjlWn6O5rsI'
 TOKEN_FOR_BUSINESSMEN = '6231661577:AAH5hiR76UBnGisYORjTrHh1egIyCh4E5wo'
+PAYMENT_TOKEN = 'test_9WDqIF3DFMvU_0qpgeNrc_LipQgzbz8-N0kz_dajAwA'
+SHOP_ID = '314953'
 global_init("db/DB.db")
 db_sess = create_session()
-logging.basicConfig(filename='another logging.log', format='%(asctime)s || %(levelname)s || %(message)s',
-                    level=logging.DEBUG)
+# logging.basicConfig(filename='another logging.log', format='%(asctime)s || %(levelname)s || %(message)s',
+#                     level=logging.DEBUG)
 # logging.basicConfig(format='%(asctime)s: %(levelname)s: %(name)s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -20,6 +24,48 @@ log_handler = logging.FileHandler(f"logging.log", mode='w')
 log_handler.setFormatter(logging.Formatter("%(asctime)s || %(levelname)s || %(message)s"))
 logger.addHandler(log_handler)
 header_of_vote_files = ['id', 'user_id', 'answer_index', 'answer_text', 'date', 'tags']
+
+
+def create_invoice(chat_id, amount, person, message_id):
+    Configuration.account_id = SHOP_ID
+    Configuration.secret_key = PAYMENT_TOKEN
+
+    payment = Payment.create({
+        "amount": {
+            "value": f"{amount}.00",
+            "currency": "RUB"
+        },
+        "confirmation": {
+            "type": "redirect",
+            "return_url": "https://www.google.com"
+        },
+        "capture": True,
+        "description": "Заказ №1",
+        "metadata": {"chat_id": chat_id, "user": True if person == "user" else False,
+                     "author": True if person == "author" else False,
+                     "message": message_id}
+    })
+
+    return payment.confirmation.confirmation_url
+
+
+def create_payout():
+    Configuration.account_id = SHOP_ID
+    Configuration.secret_key = PAYMENT_TOKEN
+    idempotence_key = str(uuid.uuid4())
+    res = Payout.create({
+        "amount": {"value": 320.0, "currency": "RUB"},
+        "payout_destination_data": {'type': "yoo_money", 'account_number': '41001614575714'},
+        "description": "Выплата по заказу №37",
+        "metadata": {
+            "order_id": "37"
+        },
+        "deal": {
+            "id": "dl-285e5ee7-0022-5000-8000-01516a44b147"
+        }
+    })
+    print(res)
+    return 'er'
 
 
 def make_log(level, name, msg):
@@ -78,8 +124,9 @@ def get_answers_as_dict(question):
     return answers
 
 
-def set_state(author, current_state):
-    author.current_state = '|'.join(list(map(lambda x: f'{x}:{current_state[x]}', current_state)))
+def set_state(person, current_state):
+    # person.current_state = '|'.join(list(map(lambda x: f'{x}:{current_state[x]}', current_state)))
+    person.current_state = json.dumps(current_state)
     db_sess.commit()
 
 
@@ -92,12 +139,12 @@ def change_state_characteristic(author, characteristic, value):
     db_sess.commit()
 
 
-def get_state(a):
-    current_state = {}
-    for characteristic in a.current_state.split('|'):
-        current_state[characteristic.split(':')[0]] = characteristic.split(':')[1]
+def get_state(person):
+    # current_state = {}
+    # for characteristic in a.current_state.split('|'):
+    #     current_state[characteristic.split(':')[0]] = characteristic.split(':')[1]
 
-    return current_state
+    return json.loads(person.current_state)
 
 
 def get_answers_of_user(user):
@@ -161,7 +208,7 @@ def check_tag_match(user, question):
         return 0
 
     tags_if_question = question.needed_tags.split(',')
-    return len(list(filter(lambda x: x in tags_if_question, user.tags.split(','))))
+    return sum(list(map(lambda x: 1 if x in tags_if_question else -1, user.tags.split(','))))
 
 
 def get_vote_as_dict(question_id, user):
@@ -189,14 +236,21 @@ def get_all_votes_with_tags(question_id, needed_tags):
 
 def append_mes_to_delete(person, message):
     if 'mes_to_delete' not in get_state(person):
-        change_state_characteristic(person, 'mes_to_delete', '')
+        change_state_characteristic(person, 'mes_to_delete', [])
 
     if get_state(person)['mes_to_delete']:
-        mes_to_delete = get_state(person)['mes_to_delete'].split(',')
-        change_state_characteristic(person, 'mes_to_delete', ','.join(mes_to_delete + [str(message.message_id)]))
+        mes_to_delete = get_state(person)['mes_to_delete']
+
+        if type(message) == int:
+            change_state_characteristic(person, 'mes_to_delete', list(set(mes_to_delete + [message])))
+        else:
+            change_state_characteristic(person, 'mes_to_delete', list(set(mes_to_delete + [message.message_id])))
 
     else:
-        change_state_characteristic(person, 'mes_to_delete', message.message_id)
+        if type(message) == int:
+            change_state_characteristic(person, 'mes_to_delete', [message])
+        else:
+            change_state_characteristic(person, 'mes_to_delete', [message.message_id])
 
 
 async def delete_messages(person):
@@ -208,16 +262,16 @@ async def delete_messages(person):
         bot = Bot(TOKEN_FOR_BUSINESSMEN)
 
     if get_state(person)['mes_to_delete']:
-        for mes_id in get_state(person)['mes_to_delete'].split(','):
-            await bot.delete_message(person.telegram_id, int(mes_id))
+        for mes_id in get_state(person)['mes_to_delete']:
+            await bot.delete_message(person.telegram_id, mes_id)
 
-        change_state_characteristic(person, 'mes_to_delete', '')
+        change_state_characteristic(person, 'mes_to_delete', [])
 
 
 def append_received_poll(user, question):
     if user.polls_received:
         user.polls_received = ','.join(list(filter(lambda x: x != '', user.polls_received.
-                                                    replace(' ', '').split(',') + [str(question.id)])))
+                                                   replace(' ', '').split(',') + [str(question.id)])))
     else:
         user.polls_received = f'{question.id}'
 

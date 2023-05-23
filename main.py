@@ -24,7 +24,7 @@ def main():
     application.add_handler(CommandHandler("get_information_about_yourself", get_all_data))
     application.add_handler(CommandHandler("get_state", get_state_message))
     application.add_handler(CommandHandler("create_tag", create_tag_start))
-    application.add_handler(CommandHandler("stop_input", stop_work_with_inf))
+    application.add_handler(CommandHandler("stop_input_data", stop_input_data))
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
@@ -100,7 +100,7 @@ async def text(update, context):
     user = db_sess.query(OurUser).filter(OurUser.telegram_id == update.message.chat_id).first()
     state = get_state(user)['state']
     if state == 'working_with_data' or state == 'registration':
-        asyncio.create_task(text_handler_working_with_data(update, context))
+        await asyncio.create_task(text_handler_working_with_data(update, context))
 
     elif state == 'create_tag':
         create_tag(update.message.text.strip())
