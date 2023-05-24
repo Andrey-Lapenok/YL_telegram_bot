@@ -6,6 +6,7 @@ from orm_support.all_db_models import *
 from data.base import *
 import asyncio
 import csv
+import sqlite3
 
 
 def get_reply_markup(question, user, type):
@@ -91,13 +92,13 @@ async def callback_1(query):
     answer = get_answers_as_list(question)[number_of_answer]['answer']
     set_answer_1(question, answer)
 
-    with open(f'db/results/{question_id}.csv', 'a', newline='', encoding="utf8") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=header_of_vote_files,
-            delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
-        vote = {'id': question_id, 'user_id': user.id, 'answer_index': number_of_answer, 'answer_text': answer,
-                'date': datetime.datetime.now().strftime('%Y-%m-%d'), 'tags': user.tags}
-        writer.writerow(vote)
+    con = sqlite3.connect('db/Results.db')
+    cur = con.cursor()
+    cur.execute(f"""INSERT INTO Poll_{question.id}(user_id, answer_index, answer_text, date, tags)
+                VALUES(?, ?, ?, ?, ?);""", (user.id, number_of_answer, answer,
+                                            datetime.datetime.now().strftime('%Y-%m-%d'), user.tags))
+    con.commit()
+    con.close()
 
     text_of_message = query.message.text.split('\n\nAdditional information:\n')[0]
     await query.edit_message_text(text=f"{text_of_message}\nВы выбрали: <i><b>{answer}</b></i>",

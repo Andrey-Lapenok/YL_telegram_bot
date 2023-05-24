@@ -221,7 +221,10 @@ async def get_results_by_tags(update, question):
     if sorted_tags['invalid_tags']:
         text_of_mes += f'Теги {", ".join(sorted_tags["invalid_tags"])} не существуют\n'
 
-        mes.append(update.message.reply_text(text=text_of_mes))
+        mes.append(await update.message.reply_text(text=text_of_mes))
+
+    if not sorted_tags['correct_tags']:
+        return 'ordinary', {'message': mes}
 
     results = ''
     all_votes = get_all_votes_with_tags(question.id, sorted_tags['correct_tags'])

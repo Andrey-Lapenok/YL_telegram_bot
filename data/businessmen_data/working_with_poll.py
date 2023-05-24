@@ -43,6 +43,10 @@ async def get_one_poll(update, context):
         return
 
     question = db_sess.query(Question).filter(Question.id == int(update.message.text)).first()
+    if question is None:
+        await update.message.reply_text(text=f'Опроса с индексом {update.message.text} не существует')
+        set_state(author, {'state': 'waiting'})
+        return
     set_state(author, {'state': 'working_on_poll', 'id': question.id, 'current_state': 'None'})
 
     if question.balance < question.check_per_person:

@@ -7,6 +7,7 @@ import csv
 import logging
 import json
 import uuid
+import sqlite3
 
 
 TOKEN = '6067604242:AAEMX9qetuikGF5TexuKXPxJfjlWn6O5rsI'
@@ -23,7 +24,7 @@ logger.setLevel(logging.DEBUG)
 log_handler = logging.FileHandler(f"logging.log", mode='w')
 log_handler.setFormatter(logging.Formatter("%(asctime)s || %(levelname)s || %(message)s"))
 logger.addHandler(log_handler)
-header_of_vote_files = ['id', 'user_id', 'answer_index', 'answer_text', 'date', 'tags']
+header_of_vote_files = ['user_id', 'answer_index', 'answer_text', 'date', 'tags']
 
 
 def create_invoice(chat_id, amount, person, message_id):
@@ -222,15 +223,17 @@ def get_vote_as_dict(question_id, user):
 
 
 def get_all_votes_with_tags(question_id, needed_tags):
-    with open(f'db/results/{question_id}.csv', encoding="utf8") as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=';', quotechar='"')
-        all_votes = []
+    con = sqlite3.connect('db/Results.db')
+    cur = con.cursor()
+    votes = [{header_of_vote_files[i]: vote[i] for i in range(len(header_of_vote_files))}
+             for vote in cur.execute(f"""SELECT * FROM Poll_{question_id}""").fetchall()]
+    all_votes = []
 
-        for vote in reader:
-            if set(needed_tags).issubset(set(vote['tags'].split(','))):
-                all_votes.append(vote)
+    for vote in votes:
+        if vote['tags'] is not None and set(needed_tags).issubset(set(vote['tags'].split(','))):
+            all_votes.append(vote)
 
-        return all_votes
+    return all_votes
 
 
 def append_mes_to_delete(person, message):

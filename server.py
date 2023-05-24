@@ -30,13 +30,11 @@ def process():
             user = db_sess.query(OurUser).filter(OurUser.telegram_id == chat_id)
             user.balance += int(float(request.json["object"]["amount"]["value"]))
             db_sess.commit()
-            person = user
         if request.json["object"]["metadata"]["author"] == "true":
             bot = Bot(TOKEN_FOR_BUSINESSMEN)
             author = db_sess.query(Author).filter(Author.telegram_id == chat_id).first()
             author.balance += int(float(request.json["object"]["amount"]["value"]))
             db_sess.commit()
-            person = author
         message_id = int(request.json["object"]["metadata"]["message"])
         asyncio.run(send_mes(chat_id, message_id, bot, int(float(request.json["object"]["amount"]["value"]))))
 

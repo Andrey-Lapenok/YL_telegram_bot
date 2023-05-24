@@ -1,5 +1,5 @@
 import asyncio
-
+import sqlite3
 from telegram import *
 from telegram.ext import *
 from orm_support.all_db_models import *
@@ -18,6 +18,9 @@ async def create_poll(update, context):
 
     author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
     question = Question()
+
+    question.balance = 10000000
+
     question.is_active = False
     question.author = author.id
     db_sess.add(question)
@@ -153,12 +156,16 @@ async def create_poll_finally(update, author):
                                   message_id=get_state(author)['menu'],
                                   parse_mode='HTML')
         set_state(author, {'state': 'waiting'})
-
-        with open(f'db/results/{question.id}.csv', 'w', newline='', encoding="utf8") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=header_of_vote_files,
-                delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
-            writer.writeheader()
+        con = sqlite3.connect('db/Results.db')
+        cur = con.cursor()
+        cur.execute(f"""CREATE TABLE IF NOT EXISTS Poll_{question.id}(
+           user_id INTEGER PRIMARY KEY,
+           answer_index INTEGER,
+           answer_text TEXT,
+           date TEXT,
+           tags TEXY);
+        """)
+        con.close()
 
         return 'stopping', {}
     else:
