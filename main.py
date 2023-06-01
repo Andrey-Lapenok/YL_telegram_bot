@@ -5,12 +5,12 @@ from orm_support.db_connect import *
 from orm_support.all_db_models import *
 from data.user_data.question_1 import *
 from re import findall
-from data.user_data.working_with_information import *
 from data.base import *
 import asyncio
 from functools import partial
 import datetime
 import csv
+from data.user_data.working_with_inf import menu_working_on_inf, registrate, get_all_data
 
 
 def main():
@@ -24,7 +24,7 @@ def main():
     application.add_handler(CommandHandler("get_information_about_yourself", get_all_data))
     application.add_handler(CommandHandler("get_state", get_state_message))
     application.add_handler(CommandHandler("create_tag", create_tag_start))
-    application.add_handler(CommandHandler("stop_input_data", stop_input_data))
+    application.add_handler(CommandHandler("stop_input", menu_working_on_inf.stop_input_data))
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
@@ -51,7 +51,7 @@ async def check_questions_date():
         make_log('debug', 'main', 'Start waiting before checking border date')
         await asyncio.sleep(delay)
         make_log('debug', 'main', 'Complete waiting before checking border date')
-        questions = db_sess.query(Question).all()
+        questions = db_sess.query(Poll1).all()
         for question in questions:
             if question.is_active and question.border_date < datetime.datetime.now():
                 question.is_active = False
@@ -100,7 +100,7 @@ async def text(update, context):
     user = db_sess.query(OurUser).filter(OurUser.telegram_id == update.message.chat_id).first()
     state = get_state(user)['state']
     if state == 'working_with_data' or state == 'registration':
-        await asyncio.create_task(text_handler_working_with_data(update, context))
+        await menu_working_on_inf.text_handler(update, context)
 
     elif state == 'create_tag':
         create_tag(update.message.text.strip())
@@ -209,41 +209,11 @@ async def callback_handler(update, context):
                                       parse_mode='HTML')
 
     if type_of_data == 'work_inf':
-        await callback_handler_working_with_data(update, context)
+        await menu_working_on_inf.callback_handler(update, context)
 
-    elif type_of_data == 'answer_1':
-        await callback_1(query)
+    elif type_of_data == 'type_1':
+        await callback_polls_1(query, user)
 
-    elif type_of_data == 'information':
-        question_id = query.data.split('|')[1]
-        question = db_sess.query(Question).filter(Question.id == question_id).first()
-        author = db_sess.query(Author).filter(Author.id == question.author).first()
-        border_date = question.border_date.strftime("%d %B, %Y")
-        answer = get_vote_as_dict(question_id, user)
-        text_answer = ''
-        if answer is not None:
-            text_answer = f'Вы выбрали: <b><i>{answer["answer_text"]}</i></b>'
-        await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer +
-                                           f'\n\n<b><i>Additional information:</i></b>\n'
-                                           f'<b><i>Автор:</i></b> {author.name}\n'
-                                           f'<b><i>Информация об авторе:</i></b> {author.additional_information}\n'
-                                           f'<b><i>Контакты автора:</i></b> {author.email}\n'
-                                           f'<b><i>Активен до:</i></b> {border_date}\n'
-                                           f'<b><i>Описание:</i></b> {question.additional_information}\n'
-                                           f'<b><i>Вам будет перечислено:</i></b> {question.check_per_person} рублей',
-                                      parse_mode='HTML',
-                                      reply_markup=get_reply_markup(question, user, type='delete_information'))
-
-    elif type_of_data == 'd_information':
-        question_id = query.data.split('|')[1]
-        question = db_sess.query(Question).filter(Question.id == question_id).first()
-        answer = get_vote_as_dict(question_id, user)
-        text_answer = ''
-        if answer is not None:
-            text_answer = f'Вы выбрали: <b><i>{answer["answer_text"]}</i></b>'
-        await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer,
-                                      parse_mode='HTML',
-                                      reply_markup=get_reply_markup(question, user, type='get_information'))
 
 if __name__ == '__main__':
     main()

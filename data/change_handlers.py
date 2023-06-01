@@ -74,7 +74,8 @@ async def remove_tags(update, person):
     return 'ordinary', {'message': mes}
 
 
-async def append_answer(update, question):
+async def append_answer(update, author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     if question.answers:
         if update.message.text in list(map(lambda x: x.split(':')[0], question.answers.split('|'))):
             mes = await update.message.reply_text(text=f'Вариант ответа <i><b>{update.message.text}</b></i>'
@@ -89,7 +90,8 @@ async def append_answer(update, question):
     return 'ordinary', {'message': mes}
 
 
-async def delete_answer(update, question):
+async def delete_answer(update, author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     try:
         answer_id = int(update.message.text) - 1
         if answer_id < 0:
@@ -138,6 +140,16 @@ async def change_additional_information(update, person):
     return 'ordinary', {'message': mes}
 
 
+async def change_additional_information_poll(update, person):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(person)['id'])).first()
+    question.additional_information = update.message.text
+    db_sess.commit()
+    mes = await update.message.reply_text(text=f'Дополнительная информация изменена'
+                                               f' на <i><b>{question.additional_information}</b></i>',
+                                          parse_mode='HTML')
+    return 'ordinary', {'message': mes}
+
+
 async def change_email(update, person):
     person.email = update.message.text
     db_sess.commit()
@@ -146,7 +158,8 @@ async def change_email(update, person):
     return 'ordinary', {'message': mes}
 
 
-async def change_title(update, question):
+async def change_title(update, author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     question.title = update.message.text
     db_sess.commit()
     mes = await update.message.reply_text(text=f'Название изменено на <i><b>{question.title}</b></i>',
@@ -154,7 +167,8 @@ async def change_title(update, question):
     return 'ordinary', {'message': mes}
 
 
-async def change_text(update, question):
+async def change_text(update, author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     question.text_of_question = update.message.text
     db_sess.commit()
     mes = await update.message.reply_text(text=f'Текст изменен на <i><b>{question.text_of_question}</b></i>',
@@ -162,7 +176,8 @@ async def change_text(update, question):
     return 'ordinary', {'message': mes}
 
 
-async def change_needed_tags(update, question):
+async def change_needed_tags(update,author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     if update.message.text == 'None':
         question.needed_tags = ''
         db_sess.commit()
@@ -214,7 +229,8 @@ async def change_waiting_time(update, person):
         return 'ordinary', {'message': mes}
 
 
-async def get_results_by_tags(update, question):
+async def get_results_by_tags(update, author):
+    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
     sorted_tags = sort_tags(update.message.text.replace(' ', ''))
     text_of_mes = ''
     mes = []
@@ -233,6 +249,7 @@ async def get_results_by_tags(update, question):
     if number_of_votes == 0:
         _mes = await update.message.reply_text(text=f'Нет ни одного голоса от человека с такими тегами')
         mes.append(_mes)
+        return 'ordinary', {'message': mes}
 
     else:
         for answer in list(map(lambda x: x['answer'], get_answers_as_list(question))):
@@ -377,13 +394,3 @@ async def callback_replenish_balance(query, person):
     change_state_characteristic(person, 'current_state', 'replenishing_balance')
     mes = await query.message.reply_text(text='Введите сумму, которую хотите внести на ваш баланс (в рублях)')
     return 'ordinary', {'message': mes}
-
-
-async def callback_working_with_data_update(update, author):
-    bot = Bot(TOKEN_FOR_BUSINESSMEN)
-    try:
-        await bot.editMessageText(get_text_of_data(author), chat_id=update.message.chat_id,
-                                  message_id=get_state(author)['menu'], parse_mode='HTML',
-                                  reply_markup=get_buttons(author))
-    finally:
-        pass

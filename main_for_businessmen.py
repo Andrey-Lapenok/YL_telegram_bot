@@ -1,11 +1,11 @@
 from telegram import *
 from telegram.ext import *
-from data.businessmen_data.working_with_poll import *
-from data.businessmen_data.working_with_data import *
-from data.businessmen_data.create_poll import *
 from data.base import *
 import asyncio
 import datetime
+from data.businessmen_data.working_with_data import menu_working_on_inf, registration, get_all_data
+from data.businessmen_data.working_with_poll import menu_working_on_poll, get_one_poll, get_one_poll_start
+from data.businessmen_data.create_poll import menu_creating_poll, create_poll_select_type, create_poll
 
 
 def main():
@@ -16,13 +16,13 @@ def main():
     application.add_handler(CommandHandler("get_tags", send_tags))
     application.add_handler(CommandHandler("get_information_about_yourself", get_all_data))
     application.add_handler(CommandHandler("get_all_polls", get_all_polls))
-    application.add_handler(CommandHandler("create_poll", create_poll))
+    application.add_handler(CommandHandler("create_poll", create_poll_select_type))
     application.add_handler(CommandHandler("get_state", get_state_message))
     application.add_handler(CommandHandler("create_tag", create_tag_start))
     application.add_handler(CommandHandler("get_poll", get_one_poll_start))
-    application.add_handler(CommandHandler("stop_input_data_about_poll", stop_input_data_about_poll))
-    application.add_handler(CommandHandler("stop_input_data", stop_input_data))
-    application.add_handler(CommandHandler("stop_input_data_creating", stop_input_data_about_poll_creating))
+    application.add_handler(CommandHandler("stop_input_poll_data", menu_working_on_poll.stop_input_data))
+    application.add_handler(CommandHandler("stop_input", menu_working_on_inf.stop_input_data))
+    application.add_handler(CommandHandler("stop_input_poll_data_creating", menu_creating_poll.stop_input_data))
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text))
     application.run_polling()
@@ -77,13 +77,13 @@ async def text(update, context):
     author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
     state = get_state(author)['state']
     if state == 'working_with_data' or state == 'registration':
-        asyncio.create_task(text_handler_working_with_data(update, context))
+        await menu_working_on_inf.text_handler(update, context)
 
     elif state == 'working_on_poll':
-        await text_handler_working_on_poll(update, context)
+        await menu_working_on_poll.text_handler(update, context)
 
     elif state == 'creating_poll':
-        await text_handler_creating_poll(update, context)
+        await menu_creating_poll.text_handler(update, context)
 
     elif state == 'creating_tag':
         create_tag(update.message.text.strip())
@@ -125,13 +125,16 @@ async def callback_handler(update, context):
         await query.edit_message_text(text=f'Current state:\n    <i><b>state</b></i>: waiting', parse_mode='HTML')
 
     elif _type == 'work_data':
-        await asyncio.create_task(callback_handler_working_with_data(update, context))
+        await menu_working_on_inf.callback_handler(update, context)
 
     elif _type == 'work_poll':
-        await asyncio.create_task(callback_handler_working_on_poll(update, context))
+        await menu_working_on_poll.callback_handler(update, context)
 
     elif _type == 'create_poll':
-        await asyncio.create_task(callback_handler_creating_poll(update, context))
+        await menu_creating_poll.callback_handler(update, context)
+
+    elif _type == 'sel_type':
+        await create_poll(update, context)
 
 
 async def get_all_polls(update, context):
@@ -143,7 +146,7 @@ async def get_all_polls(update, context):
         return
 
     author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
-    questions = db_sess.query(Question).filter(Question.author == author.id).all()
+    questions = db_sess.query(Poll1).filter(Poll1.author == author.id).all()
     text_of_mes = 'Все ваши опросы:\n'
     if len(questions) == 0:
         await update.message.reply_text(text='У вас ни одного опроса')

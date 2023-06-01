@@ -15,18 +15,21 @@ def get_reply_markup(question, user, type):
     if question.id not in get_answers_of_user(user):
         if len(answers) > 2:
             buttons = [
-                [InlineKeyboardButton(answer['answer'], callback_data=f'answer_1|{question.id}|{answers.index(answer)}')]
+                [InlineKeyboardButton(answer['answer'],
+                                      callback_data=f'type_1|answer|{question.id}|{answers.index(answer)}')]
                 for answer in answers]
         else:
             buttons = [
-                [InlineKeyboardButton(answer['answer'], callback_data=f'answer_1|{question.id}|{answers.index(answer)}')
+                [InlineKeyboardButton(answer['answer'],
+                                      callback_data=f'type_1|answer|{question.id}|{answers.index(answer)}')
                  for answer in answers]]
 
     if type == 'get_information':
-        buttons.append([InlineKeyboardButton('ℹ️informationℹ', callback_data=f'information|{question.id}')])
+        buttons.append([InlineKeyboardButton('ℹ️informationℹ', callback_data=f'type_1|information|{question.id}')])
 
     elif type == 'delete_information':
-        buttons.append([InlineKeyboardButton('ℹ️delete informationℹ', callback_data=f'd_information|{question.id}')])
+        buttons.append([InlineKeyboardButton('ℹ️delete informationℹ',
+                                             callback_data=f'type_1|d_information|{question.id}')])
     return InlineKeyboardMarkup(buttons)
 
 
@@ -46,7 +49,7 @@ async def send_question_1(telegram_id, ordinarily=True):
         return
 
     questions = []
-    for question in db_sess.query(Question).filter(Question.is_active).all():
+    for question in db_sess.query(Poll1).filter(Poll1.is_active).all():
         if (user.polls_received is not None and str(question.id) not in user.polls_received.split(',')) or (
                 user.polls_received is None and get_vote_as_dict(question.id, user) is None)\
                 and question.balance >= question.check_per_person:
@@ -60,7 +63,7 @@ async def send_question_1(telegram_id, ordinarily=True):
             await bot.send_message(telegram_id, 'К сожалению, у нас нет опросов для вас')
         return None
 
-    question = db_sess.query(Question).filter(Question.id == max(questions, key=lambda x: x[1])[0]).first()
+    question = db_sess.query(Poll1).filter(Poll1.id == max(questions, key=lambda x: x[1])[0]).first()
     append_received_poll(user, question)
     question.balance -= question.check_per_person
     db_sess.commit()
@@ -77,14 +80,29 @@ async def send_question_1_by_request(update, context):
             and not check_state({'state': 'ready'}, update.message.chat_id):
         await update.send_message(text='Вы не можете начать новое действие, не закончив старое')
         return
+
     await asyncio.create_task(send_question_1(update.message.chat_id, ordinarily=False))
 
 
+async def callback_polls_1(query, user):
+    type_of_data = get_data_from_button(query)['data'][0]
+
+    if type_of_data == 'answer':
+        await callback_1(query)
+
+    elif type_of_data == 'information':
+        await append_information(query, user)
+
+    elif type_of_data == 'd_information':
+        await delete_information(query, user)
+
+
 async def callback_1(query):
-    question_id, number_of_answer = query.data.split('|')[1:]
+    question_id, number_of_answer = get_data_from_button(query)['data'][1:]
     number_of_answer = int(number_of_answer)
-    question = db_sess.query(Question).filter(Question.id == question_id).first()
+    question = db_sess.query(Poll1).filter(Poll1.id == question_id).first()
     user = db_sess.query(OurUser).filter(OurUser.telegram_id == query.message.chat_id).first()
+
     append_answered_poll(user, question)
     user.balance += question.check_per_person
     db_sess.commit()
@@ -92,11 +110,11 @@ async def callback_1(query):
     answer = get_answers_as_list(question)[number_of_answer]['answer']
     set_answer_1(question, answer)
 
-    con = sqlite3.connect('db/Results.db')
+    con = sqlite3.connect('db/Results_type_1.db')
     cur = con.cursor()
     cur.execute(f"""INSERT INTO Poll_{question.id}(user_id, answer_index, answer_text, date, tags)
-                VALUES(?, ?, ?, ?, ?);""", (user.id, number_of_answer, answer,
-                                            datetime.datetime.now().strftime('%Y-%m-%d'), user.tags))
+                        VALUES(?, ?, ?, ?, ?);""", (user.id, number_of_answer, answer,
+                                                    datetime.datetime.now().strftime('%Y-%m-%d'), user.tags))
     con.commit()
     con.close()
 
@@ -104,3 +122,36 @@ async def callback_1(query):
     await query.edit_message_text(text=f"{text_of_message}\nВы выбрали: <i><b>{answer}</b></i>",
                                   parse_mode='HTML', reply_markup=get_reply_markup(question, user,
                                                                                    type='get_information'))
+
+
+async def append_information(query, user):
+    question_id = get_data_from_button(query)['data'][1]
+    question = db_sess.query(Poll1).filter(Poll1.id == question_id).first()
+    author = db_sess.query(Author).filter(Author.id == question.author).first()
+    border_date = question.border_date.strftime("%d %B, %Y")
+    answer = get_vote_as_dict(question_id, user)
+    text_answer = ''
+    if answer is not None:
+        text_answer = f'Вы выбрали: <b><i>{answer["answer_text"]}</i></b>'
+    await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer +
+                                       f'\n\n<b><i>Additional information:</i></b>\n'
+                                       f'<b><i>Автор:</i></b> {author.name}\n'
+                                       f'<b><i>Информация об авторе:</i></b> {author.additional_information}\n'
+                                       f'<b><i>Контакты автора:</i></b> {author.email}\n'
+                                       f'<b><i>Активен до:</i></b> {border_date}\n'
+                                       f'<b><i>Описание:</i></b> {question.additional_information}\n'
+                                       f'<b><i>Вам будет перечислено:</i></b> {question.check_per_person} рублей',
+                                  parse_mode='HTML',
+                                  reply_markup=get_reply_markup(question, user, type='delete_information'))
+
+
+async def delete_information(query, user):
+    question_id = get_data_from_button(query)['data'][1]
+    question = db_sess.query(Poll1).filter(Poll1.id == question_id).first()
+    answer = get_vote_as_dict(question_id, user)
+    text_answer = ''
+    if answer is not None:
+        text_answer = f'Вы выбрали: <b><i>{answer["answer_text"]}</i></b>'
+    await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer,
+                                  parse_mode='HTML',
+                                  reply_markup=get_reply_markup(question, user, type='get_information'))

@@ -212,18 +212,17 @@ def check_tag_match(user, question):
 
 
 def get_vote_as_dict(question_id, user):
-    with open(f'db/results/{question_id}.csv', encoding="utf8") as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=';', quotechar='"')
-
-        for vote in reader:
-            if user.id == int(vote['user_id']):
-                return vote
-
+    con = sqlite3.connect('db/Results_type_1.db')
+    cur = con.cursor()
+    answer = cur.execute(f"""SELECT * FROM Poll_{question_id} WHERE user_id = {user.id}""").fetchone()
+    con.close()
+    if answer is None:
         return None
+    return {header_of_vote_files[i]: answer[i] for i in range(len(header_of_vote_files))}
 
 
 def get_all_votes_with_tags(question_id, needed_tags):
-    con = sqlite3.connect('db/Results.db')
+    con = sqlite3.connect('db/Results_type_1.db')
     cur = con.cursor()
     votes = [{header_of_vote_files[i]: vote[i] for i in range(len(header_of_vote_files))}
              for vote in cur.execute(f"""SELECT * FROM Poll_{question_id}""").fetchall()]
