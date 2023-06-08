@@ -131,7 +131,8 @@ async def callback_handler(update, context):
         await menu_working_on_poll.callback_handler(update, context)
 
     elif _type == 'create_poll':
-        await menu_creating_poll.callback_handler(update, context)
+        if get_data_from_button(query)['data'][2] == '1' or get_data_from_button(query)['data'][2] == '2':
+            await menu_creating_poll.callback_handler(update, context)
 
     elif _type == 'sel_type':
         await create_poll(update, context)
@@ -146,15 +147,23 @@ async def get_all_polls(update, context):
         return
 
     author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
-    questions = db_sess.query(Poll1).filter(Poll1.author == author.id).all()
+    polls_type_1 = db_sess.query(Poll1).filter(Poll1.author == author.id).all()
+    polls_type_2 = db_sess.query(Poll2).filter(Poll2.author == author.id).all()
     text_of_mes = 'Все ваши опросы:\n'
-    if len(questions) == 0:
+    if len(polls_type_1 + polls_type_2) == 0:
         await update.message.reply_text(text='У вас ни одного опроса')
         return
 
-    for index, question in enumerate(questions):
-        text_of_mes += f'    {index + 1}. {question.title} (id: {question.id},' \
-                       f' {"active" if question.is_active else "not active"})\n'
+    if len(polls_type_1) != 0:
+        text_of_mes += '    Опросы первого типа:\n'
+        for index, question in enumerate(polls_type_1):
+            text_of_mes += f'        {index + 1}. {question.title} (id: {question.id},' \
+                           f' {"active" if question.is_active else "not active"})\n'
+    if len(polls_type_2) != 0:
+        text_of_mes += '    Опросы второго типа:\n'
+        for index, question in enumerate(polls_type_2):
+            text_of_mes += f'        {index + 1}. {question.title} (id: {question.id},' \
+                           f' {"active" if question.is_active else "not active"})\n'
 
     await update.message.reply_text(text=text_of_mes)
 

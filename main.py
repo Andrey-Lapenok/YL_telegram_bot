@@ -3,7 +3,7 @@ from telegram import *
 from telegram.ext import *
 from orm_support.db_connect import *
 from orm_support.all_db_models import *
-from data.user_data.question_1 import *
+from data.user_data.polls_distributor import *
 from re import findall
 from data.base import *
 import asyncio
@@ -17,7 +17,7 @@ def main():
     make_log('debug', 'main', 'Start main')
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("registration", registrate))
-    application.add_handler(CommandHandler("get", send_question_1_by_request))
+    application.add_handler(CommandHandler("get", send_poll_by_request))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("delete_data", delete_data))
     application.add_handler(CommandHandler("get_tags", send_tags))
@@ -71,7 +71,7 @@ def update_user(user):
     if get_state(user)['state'] == 'ready':
         set_state(user, {'state': 'waiting'})
         db_sess.commit()
-        asyncio.create_task(send_question_1(user.telegram_id))
+        asyncio.create_task(send_poll(user.telegram_id))
 
 
 async def get_state_message(update, context):
@@ -211,8 +211,8 @@ async def callback_handler(update, context):
     if type_of_data == 'work_inf':
         await menu_working_on_inf.callback_handler(update, context)
 
-    elif type_of_data == 'type_1':
-        await callback_polls_1(query, user)
+    elif type_of_data in ['type_1', 'type_2']:
+        await callback_polls(query, user)
 
 
 if __name__ == '__main__':

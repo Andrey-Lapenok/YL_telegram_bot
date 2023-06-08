@@ -147,11 +147,8 @@ def get_state(person):
     return json.loads(person.current_state)
 
 
-def get_answers_of_user(user):
-    if user.answered_polls:
-        return list(map(int, filter(lambda x: x != '', user.answered_polls.split(','))))
-
-    return []
+def get_answers_of_user(user, _type):
+    return json.loads(user.answered_polls)[_type]
 
 
 def file_gen():
@@ -205,14 +202,15 @@ def sort_tags(_tags):
 
 def check_tag_match(user, question):
     if question.needed_tags is None or user.tags is None:
-        return 0
+        return -10     # В идеале здесь должен быть 0, но я решил забуллить пользователей без тегов
 
     tags_if_question = question.needed_tags.split(',')
-    return sum(list(map(lambda x: 1 if x in tags_if_question else -1, user.tags.split(','))))
+    return sum(list(map(lambda x: 1 if x in tags_if_question else -1, user.tags.split(',')))) +\
+        question.check_per_person // 10
 
 
-def get_vote_as_dict(question_id, user):
-    con = sqlite3.connect('db/Results_type_1.db')
+def get_vote_as_dict(question_id, user, poll_type: int):
+    con = sqlite3.connect(f'db/Results_type_{poll_type}.db')
     cur = con.cursor()
     answer = cur.execute(f"""SELECT * FROM Poll_{question_id} WHERE user_id = {user.id}""").fetchone()
     con.close()
@@ -221,8 +219,8 @@ def get_vote_as_dict(question_id, user):
     return {header_of_vote_files[i]: answer[i] for i in range(len(header_of_vote_files))}
 
 
-def get_all_votes_with_tags(question_id, needed_tags):
-    con = sqlite3.connect('db/Results_type_1.db')
+def get_all_votes_with_tags(question_id, needed_tags, poll_type: int):
+    con = sqlite3.connect(f'db/Results_type_{poll_type}.db')
     cur = con.cursor()
     votes = [{header_of_vote_files[i]: vote[i] for i in range(len(header_of_vote_files))}
              for vote in cur.execute(f"""SELECT * FROM Poll_{question_id}""").fetchall()]
@@ -269,20 +267,22 @@ async def delete_messages(person):
         change_state_characteristic(person, 'mes_to_delete', [])
 
 
-def append_received_poll(user, question):
-    if user.polls_received:
-        user.polls_received = ','.join(list(filter(lambda x: x != '', user.polls_received.
-                                                   replace(' ', '').split(',') + [str(question.id)])))
-    else:
-        user.polls_received = f'{question.id}'
+def append_received_poll(user, question, _type: str):
+    received_polls = json.loads(user.polls_received)
+    received_polls[_type].append(question.id)
+    user.polls_received = json.dumps(received_polls)
+    db_sess.commit()
+    # if user.polls_received:
+    #     user.polls_received = ','.join(list(filter(lambda x: x != '', user.polls_received.
+    #                                                replace(' ', '').split(',') + [str(question.id)])))
+    # else:
+    #     user.polls_received = f'{question.id}'
 
 
-def append_answered_poll(user, question):
-    if user.answered_polls:
-        user.answered_polls = ', '.join(list(filter(lambda x: x != '', user.answered_polls.
-                                                    replace(' ', '').split(',') + [str(question.id)])))
-    else:
-        user.answered_polls = f'{question.id}'
+def append_answered_poll(user, question, poll_type: int):
+    answered_polls = json.loads(user.answered_polls)
+    answered_polls[str(poll_type)].append(question.id)
+    user.answered_polls = json.dumps(answered_polls)
 
 
 def get_data_from_button(query):

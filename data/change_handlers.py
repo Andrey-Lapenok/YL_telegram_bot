@@ -75,7 +75,8 @@ async def remove_tags(update, person):
 
 
 async def append_answer(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     if question.answers:
         if update.message.text in list(map(lambda x: x.split(':')[0], question.answers.split('|'))):
             mes = await update.message.reply_text(text=f'Вариант ответа <i><b>{update.message.text}</b></i>'
@@ -91,7 +92,8 @@ async def append_answer(update, author):
 
 
 async def delete_answer(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     try:
         answer_id = int(update.message.text) - 1
         if answer_id < 0:
@@ -141,7 +143,8 @@ async def change_additional_information(update, person):
 
 
 async def change_additional_information_poll(update, person):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(person)['id'])).first()
+    poll_type = Poll1 if get_state(person)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(person)['id'])).first()
     question.additional_information = update.message.text
     db_sess.commit()
     mes = await update.message.reply_text(text=f'Дополнительная информация изменена'
@@ -159,7 +162,8 @@ async def change_email(update, person):
 
 
 async def change_title(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     question.title = update.message.text
     db_sess.commit()
     mes = await update.message.reply_text(text=f'Название изменено на <i><b>{question.title}</b></i>',
@@ -168,7 +172,8 @@ async def change_title(update, author):
 
 
 async def change_text(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     question.text_of_question = update.message.text
     db_sess.commit()
     mes = await update.message.reply_text(text=f'Текст изменен на <i><b>{question.text_of_question}</b></i>',
@@ -176,8 +181,9 @@ async def change_text(update, author):
     return 'ordinary', {'message': mes}
 
 
-async def change_needed_tags(update,author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+async def change_needed_tags(update, author):
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     if update.message.text == 'None':
         question.needed_tags = ''
         db_sess.commit()
@@ -230,7 +236,8 @@ async def change_waiting_time(update, person):
 
 
 async def get_results_by_tags(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     sorted_tags = sort_tags(update.message.text.replace(' ', ''))
     text_of_mes = ''
     mes = []
@@ -243,7 +250,7 @@ async def get_results_by_tags(update, author):
         return 'ordinary', {'message': mes}
 
     results = ''
-    all_votes = get_all_votes_with_tags(question.id, sorted_tags['correct_tags'])
+    all_votes = get_all_votes_with_tags(question.id, sorted_tags['correct_tags'], get_state(author)['type'])
     number_of_votes = len(all_votes)
 
     if number_of_votes == 0:
@@ -253,7 +260,7 @@ async def get_results_by_tags(update, author):
 
     else:
         for answer in list(map(lambda x: x['answer'], get_answers_as_list(question))):
-            number_of_votes_answer = len(list(filter(lambda x: x["answer_text"] == answer, all_votes)))
+            number_of_votes_answer = len(list(filter(lambda x: answer in x["answer_text"].split('|'), all_votes)))
             results += f'    {answer}:' \
                        f' {round(number_of_votes_answer / number_of_votes * 100, 2)}%\n'
 

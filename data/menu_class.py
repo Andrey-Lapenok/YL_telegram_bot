@@ -57,7 +57,11 @@ class Menu:
                 append_mes_to_delete(person, data['message'])
             await query.edit_message_text(text=self.get_text(person), parse_mode='HTML')
         elif mode == 'stopping':
-            return
+            await query.edit_message_text(text=self.get_text(person), parse_mode='HTML')
+            set_state(person, {'state': 'waiting'})
+        elif mode == 'stop_creating':
+            await query.edit_message_text(text=self.get_text(person), parse_mode='HTML')
+            set_state(person, {'state': 'waiting'})
 
     async def text_handler(self, update, context):
         person_type = OurUser if self.menu_type == 'user' else Author

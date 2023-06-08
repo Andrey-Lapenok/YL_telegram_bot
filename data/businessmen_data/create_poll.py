@@ -25,14 +25,15 @@ async def create_poll(update, context):
     query = update.callback_query
     _type = get_data_from_button(query)['data'][0]
     author = db_sess.query(Author).filter(Author.telegram_id == query.message.chat_id).first()
-    question = Poll1()
+    question = Poll1() if _type == '1' else Poll2()
     question.balance = 10000000
     question.is_active = False
     question.author = author.id
     db_sess.add(question)
     db_sess.commit()
     await delete_messages(author)
-    set_state(author, {'state': 'creating_poll', 'id': question.id, 'current_state': 'None', 'mes_to_delete': ''})
+    set_state(author, {'state': 'creating_poll', 'id': question.id, 'current_state': 'None',
+                       'mes_to_delete': '', 'type': int(_type)})
 
     mes = await query.message.reply_text(text=get_text(author),
                                          parse_mode='HTML', reply_markup=get_buttons(author))
@@ -40,7 +41,11 @@ async def create_poll(update, context):
 
 
 def get_text(author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    _type = get_state(author)['type']
+    question = db_sess.query(Poll1 if _type == 1 else Poll2).filter(
+        (Poll1 if _type == 1 else Poll2).id == int(get_state(author)['id'])).first()
+    if question is None:
+        return 'Опрос не был создан'
     if question.answers:
         answers = "\n"
         for i, answer in enumerate(get_answers_as_list(question)):
@@ -49,6 +54,7 @@ def get_text(author):
         answers = "None"
     return f'All information about this poll:\n\f' \
            f'<b><i>Id:</i></b> {question.id}\n' \
+           f'<b><i>Type:</i></b> {"1 answer" if _type == 1 else "many answer"}\n' \
            f'<b><i>Title:</i></b> {question.title}\n' \
            f'<b><i>Text:</i></b> {question.text_of_question}\n' \
            f'<b><i>Additional information:</i></b> {question.additional_information}\n' \
@@ -59,41 +65,39 @@ def get_text(author):
 
 
 def get_buttons(author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
+    _type = get_state(author)['type']
     buttons = [[InlineKeyboardButton('Change title' if question.title else 'Add title',
-                                     callback_data=f'create_poll|ch_title|{question.id}'),
+                                     callback_data=f'create_poll|ch_title|{question.id}|{_type}'),
                 InlineKeyboardButton('Change text' if question.text_of_question
-                                     else 'Add text', callback_data=f'create_poll|ch_text|{question.id}')],
+                                     else 'Add text', callback_data=f'create_poll|ch_text|{question.id}|{_type}')],
                [InlineKeyboardButton('Change additional information' if question.additional_information
                                      else 'Add additional information',
-                                     callback_data=f'create_poll|ch_inf|{question.id}')],
+                                     callback_data=f'create_poll|ch_inf|{question.id}|{_type}')],
                [InlineKeyboardButton('Change needed tags' if question.needed_tags
-                                     else 'Add needed tags', callback_data=f'create_poll|ch_tags|{question.id}')],
-               [InlineKeyboardButton('Append answer', callback_data=f'create_poll|ap_ans|{question.id}'),
-                InlineKeyboardButton('Delete answer', callback_data=f'create_poll|del_ans|{question.id}')],
-               [InlineKeyboardButton('Activate', callback_data=f'create_poll|activate|{question.id}')],
-               [InlineKeyboardButton('Stop', callback_data=f'create_poll|stop|{question.id}')]]
+                                     else 'Add needed tags',
+                                     callback_data=f'create_poll|ch_tags|{question.id}|{_type}')],
+               [InlineKeyboardButton('Append answer', callback_data=f'create_poll|ap_ans|{question.id}|{_type}'),
+                InlineKeyboardButton('Delete answer', callback_data=f'create_poll|del_ans|{question.id}|{_type}')],
+               [InlineKeyboardButton('Activate', callback_data=f'create_poll|activate|{question.id}|{_type}')],
+               [InlineKeyboardButton('Stop', callback_data=f'create_poll|stop|{question.id}|{_type}')]]
 
     return InlineKeyboardMarkup(buttons)
 
 
 async def create_poll_finally(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     if question.title and question.text_of_question and \
             question.additional_information and question.answers:
         question.is_active = True
         db_sess.commit()
-        bot = Bot(TOKEN_FOR_BUSINESSMEN)
-        await bot.editMessageText(get_text(author),
-                                  chat_id=update.message.chat_id,
-                                  message_id=get_state(author)['menu'],
-                                  parse_mode='HTML')
-        set_state(author, {'state': 'waiting'})
-        con = sqlite3.connect('db/Results_type_1.db')
+        con = sqlite3.connect(f'db/Results_type_{1 if poll_type == Poll1 else 2}.db')
         cur = con.cursor()
         cur.execute(f"""CREATE TABLE IF NOT EXISTS Poll_{question.id}(
            user_id INTEGER PRIMARY KEY,
-           answer_index INTEGER,
+           answer_index {'INTEGER' if poll_type == Poll1 else 'TEXT'},
            answer_text TEXT,
            date TEXT,
            tags TEXY);
@@ -107,9 +111,9 @@ async def create_poll_finally(update, author):
 
 
 async def stop_creating(query, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     db_sess.delete(question)
-    set_state(author, {'state': 'waiting'})
     db_sess.commit()
     return 'stop_creating', {}
 

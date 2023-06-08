@@ -64,7 +64,6 @@ async def stop_working_with_data(update, author):
                                   chat_id=update.message.chat_id,
                                   message_id=get_state(author)['menu'],
                                   parse_mode='HTML')
-        set_state(author, {'state': 'waiting'})
         return 'stopping', {}
     else:
         await update.answer(text='Нельзя завершить процесс, так как не все поля заполнены', show_alert=False)

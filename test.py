@@ -1,7 +1,5 @@
-def convert_to(number, base):
-    digits = '0123456789abcdef'
-    result = ''
-    while number > 0:
-        result = digits[number % base] + result
-        number //= base
-    return result
+import json
+
+
+a = '{"1": [1, 2, 3]}'
+print(json.loads(a))

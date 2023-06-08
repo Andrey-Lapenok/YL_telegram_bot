@@ -8,26 +8,35 @@ async def get_one_poll_start(update, context):
     if not await is_registered(update, context, who=Author):
         return
 
-    author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
-    if not check_state({'state': 'waiting'}, author.telegram_id, who=Author):
+    if not check_state({'state': 'waiting'}, update.message.chat_id, who=Author):
         await update.message.reply_text(text='Вы не можете начать новое действие, не закончив старое')
         return
 
-    questions = db_sess.query(Poll1).filter(Poll1.author == author.id).all()
-    if len(questions) <= 0:
-        await update.message.reply_text(text='У вас нет ни одного опроса, вы можете создать их с помощью команды '
-                                             '<b><i>/create_poll</i></b>', parse_mode='HTML')
+    author = db_sess.query(Author).filter(Author.telegram_id == update.message.chat_id).first()
+    polls_type_1 = db_sess.query(Poll1).filter(Poll1.author == author.id).all()
+    polls_type_2 = db_sess.query(Poll2).filter(Poll2.author == author.id).all()
+    text_of_mes = 'Все ваши опросы:\n'
+    if len(polls_type_1 + polls_type_2) == 0:
+        await update.message.reply_text(text='У вас ни одного опроса')
         return
 
-    text_of_mes = 'Все ваши опросы:\n'
-    for index, question in enumerate(questions):
-        text_of_mes += f'    {index + 1}. {question.title} (id: {question.id},' \
-                       f' {"active" if question.is_active else "not active"})\n'
+    if len(polls_type_1) != 0:
+        text_of_mes += '    Опросы первого типа:\n'
+        for index, question in enumerate(polls_type_1):
+            text_of_mes += f'        {index + 1}. {question.title} (id: {question.id},' \
+                           f' {"active" if question.is_active else "not active"})\n'
+    if len(polls_type_2) != 0:
+        text_of_mes += '    Опросы второго типа:\n'
+        for index, question in enumerate(polls_type_2):
+            text_of_mes += f'        {index + 1}. {question.title} (id: {question.id},' \
+                           f' {"active" if question.is_active else "not active"})\n'
 
     await update.message.reply_text(text=text_of_mes)
 
     set_state(author, {'state': 'getting_poll'})
-    await update.message.reply_text(text='Введите id опроса, который хотите поучить')
+    await update.message.reply_text(text='Введите тип опроса и id опроса, который'
+                                         ' хотите поучить, например 1, 1 значит,'
+                                         ' что вы выбрали опрос типа 1 и с индексом 1')
 
 
 async def get_one_poll(update, context):
@@ -38,13 +47,15 @@ async def get_one_poll(update, context):
     if not check_state({'state': 'getting_poll'}, author.telegram_id, who=Author):
         await update.message.reply_text(text='Вы не можете начать новое действие, не закончив старое')
         return
-
-    question = db_sess.query(Poll1).filter(Poll1.id == int(update.message.text)).first()
+    poll_type, poll_id = list(map(int, update.message.text.split(', ')))
+    poll_type = Poll1 if poll_type == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == poll_id).first()
     if question is None:
         await update.message.reply_text(text=f'Опроса с индексом {update.message.text} не существует')
         set_state(author, {'state': 'waiting'})
         return
-    set_state(author, {'state': 'working_on_poll', 'id': question.id, 'current_state': 'None'})
+    set_state(author, {'state': 'working_on_poll', 'id': question.id, 'current_state': 'None',
+                       'type': 1 if poll_type == Poll1 else 2})
 
     if question.balance < question.check_per_person:
         question.is_active = False
@@ -56,14 +67,9 @@ async def get_one_poll(update, context):
 
 
 async def stop_working_with_poll(update, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     if question.title and question.text_of_question and question.additional_information:
-        bot = Bot(TOKEN_FOR_BUSINESSMEN)
-        await bot.editMessageText(get_text(author),
-                                  chat_id=update.message.chat_id,
-                                  message_id=get_state(author)['menu'],
-                                  parse_mode='HTML')
-        set_state(author, {'state': 'waiting'})
         return 'stopping', {}
     else:
         await update.answer(text='Нельзя завершить процесс, так как не все поля заполнены', show_alert=False)
@@ -71,7 +77,8 @@ async def stop_working_with_poll(update, author):
 
 
 async def set_activation(query, author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     question.is_active = not question.is_active
     db_sess.commit()
     await query.edit_message_text(text=get_text(author), parse_mode='HTML',
@@ -80,7 +87,8 @@ async def set_activation(query, author):
 
 
 def get_text(author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     results = '\n'
     all_votes = sum(list(map(lambda x: int(x.split(":")[1]), question.answers.split('|'))))
     if all_votes == 0:
@@ -105,7 +113,8 @@ def get_text(author):
 
 
 def get_buttons(author):
-    question = db_sess.query(Poll1).filter(Poll1.id == int(get_state(author)['id'])).first()
+    poll_type = Poll1 if get_state(author)['type'] == 1 else Poll2
+    question = db_sess.query(poll_type).filter(poll_type.id == int(get_state(author)['id'])).first()
     buttons = [[InlineKeyboardButton('Change title', callback_data=f'work_poll|ch_title|{question.id}'),
                 InlineKeyboardButton('Change text', callback_data=f'work_poll|ch_text|{question.id}')],
                [InlineKeyboardButton('Change additional information', callback_data=f'work_poll|ch_inf|{question.id}')],
