@@ -147,8 +147,12 @@ def get_state(person):
     return json.loads(person.current_state)
 
 
-def get_answers_of_user(user, _type):
+def get_answers_of_user(user, _type: str):
     return json.loads(user.answered_polls)[_type]
+
+
+def get_received_polls_of_user(user, poll_type: int):
+    return json.loads(user.polls_received)[str(poll_type)]
 
 
 def file_gen():

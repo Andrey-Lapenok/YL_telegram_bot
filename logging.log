@@ -1,10 +1,56 @@
-2023-06-08 12:15:38,096 || DEBUG || base || Start check registration
-2023-06-08 12:15:38,100 || DEBUG || base || Complete check registration, return true
-2023-06-08 12:15:43,410 || DEBUG || base || Start check registration
-2023-06-08 12:15:43,412 || DEBUG || base || Complete check registration, return true
-2023-06-08 12:15:43,414 || DEBUG || base || Start check registration
-2023-06-08 12:15:43,416 || DEBUG || base || Complete check registration, return true
-2023-06-08 12:16:03,347 || DEBUG || base || Start check registration
-2023-06-08 12:16:03,349 || DEBUG || base || Complete check registration, return true
-2023-06-08 12:16:27,327 || DEBUG || base || Start check registration
-2023-06-08 12:16:27,329 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:20:56,169 || DEBUG || main || Start main
+2023-06-11 23:20:56,256 || DEBUG || main || Start wait before update users
+2023-06-11 23:20:56,256 || DEBUG || main || Start waiting before checking border date
+2023-06-11 23:20:56,669 || DEBUG || base || Start check registration
+2023-06-11 23:20:56,670 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:20:59,154 || DEBUG || base || Start check registration
+2023-06-11 23:20:59,156 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:00,128 || DEBUG || base || Start check registration
+2023-06-11 23:21:00,129 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:01,181 || DEBUG || base || Start check registration
+2023-06-11 23:21:01,182 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:06,262 || DEBUG || main || Start update users
+2023-06-11 23:21:06,310 || DEBUG || main || Complete update users
+2023-06-11 23:21:06,311 || DEBUG || main || Start wait before update users
+2023-06-11 23:21:07,098 || DEBUG || base || Start check registration
+2023-06-11 23:21:07,100 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:09,064 || DEBUG || base || Start check registration
+2023-06-11 23:21:09,065 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:09,879 || DEBUG || base || Start check registration
+2023-06-11 23:21:09,880 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:10,409 || DEBUG || base || Start check registration
+2023-06-11 23:21:10,410 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:10,893 || DEBUG || base || Start check registration
+2023-06-11 23:21:10,895 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:11,391 || DEBUG || base || Start check registration
+2023-06-11 23:21:11,393 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:11,802 || DEBUG || base || Start check registration
+2023-06-11 23:21:11,804 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:12,360 || DEBUG || base || Start check registration
+2023-06-11 23:21:12,362 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:16,313 || DEBUG || main || Start update users
+2023-06-11 23:21:16,363 || DEBUG || main || Complete update users
+2023-06-11 23:21:16,363 || DEBUG || main || Start wait before update users
+2023-06-11 23:21:16,882 || DEBUG || base || Start check registration
+2023-06-11 23:21:16,884 || DEBUG || base || Complete check registration, return true
+2023-06-11 23:21:26,385 || DEBUG || main || Start update users
+2023-06-11 23:21:26,420 || DEBUG || main || Complete update users
+2023-06-11 23:21:26,421 || DEBUG || main || Start wait before update users
+2023-06-11 23:21:36,437 || DEBUG || main || Start update users
+2023-06-11 23:21:36,473 || DEBUG || main || Complete update users
+2023-06-11 23:21:36,473 || DEBUG || main || Start wait before update users
+2023-06-11 23:21:46,487 || DEBUG || main || Start update users
+2023-06-11 23:21:46,527 || DEBUG || main || Complete update users
+2023-06-11 23:21:46,527 || DEBUG || main || Start wait before update users
+2023-06-11 23:21:56,535 || DEBUG || main || Start update users
+2023-06-11 23:21:56,573 || DEBUG || main || Complete update users
+2023-06-11 23:21:56,573 || DEBUG || main || Start wait before update users
+2023-06-11 23:22:06,564 || DEBUG || main || Start update users
+2023-06-11 23:22:06,600 || DEBUG || main || Complete update users
+2023-06-11 23:22:06,600 || DEBUG || main || Start wait before update users
+2023-06-11 23:22:16,603 || DEBUG || main || Start update users
+2023-06-11 23:22:16,643 || DEBUG || main || Complete update users
+2023-06-11 23:22:16,643 || DEBUG || main || Start wait before update users
+2023-06-11 23:22:26,655 || DEBUG || main || Start update users
+2023-06-11 23:22:26,694 || DEBUG || main || Complete update users
+2023-06-11 23:22:26,694 || DEBUG || main || Start wait before update users
