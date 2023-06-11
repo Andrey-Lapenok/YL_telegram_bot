@@ -1,15 +1,10 @@
-import logging
 from telegram import *
 from telegram.ext import *
-from orm_support.db_connect import *
-from orm_support.all_db_models import *
 from data.user_data.polls_distributor import *
 from re import findall
 from data.base import *
 import asyncio
-from functools import partial
 import datetime
-import csv
 from data.user_data.working_with_inf import menu_working_on_inf, registrate, get_all_data
 
 
