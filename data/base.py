@@ -65,7 +65,6 @@ def create_payout():
             "id": "dl-285e5ee7-0022-5000-8000-01516a44b147"
         }
     })
-    print(res)
     return 'er'
 
 
