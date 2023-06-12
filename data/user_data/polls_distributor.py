@@ -41,6 +41,8 @@ async def send_poll(telegram_id, ordinarily=True):
     reply_markup = None
     if type(poll) == Poll1:
         reply_markup = get_reply_markup_type_1(poll, user, 'get_information')
+    if type(poll) == Poll2:
+        reply_markup = get_reply_markup_type_2(poll, user, 'get_information')
 
     await bot.send_message(telegram_id, poll.text_of_question, reply_markup=reply_markup)
 
@@ -54,20 +56,25 @@ async def send_poll_by_request(update, context):
         await update.send_message(text='Вы не можете начать новое действие, не закончив старое')
         return
 
-    await asyncio.create_task(send_question(update.message.chat_id, ordinarily=False))
+    await asyncio.create_task(send_poll(update.message.chat_id, ordinarily=False))
 
 
 async def callback_polls(query, user):
+    type_of_query = get_data_from_button(query)['type']
     type_of_data = get_data_from_button(query)['data'][0]
 
-    if type_of_data == 'answer':
-        await callback_1(query)
-
-    elif type_of_data == 'information':
+    if type_of_data == 'information':
         await append_information(query, user)
 
     elif type_of_data == 'd_information':
         await delete_information(query, user)
+
+    else:
+        if type_of_query == 'type_1':
+            await callback_1(query)
+
+        elif type_of_query == 'type_2':
+            await callback_2(query)
 
 
 async def append_information(query, user):
@@ -81,6 +88,9 @@ async def append_information(query, user):
     if poll_type == Poll1:
         text_answer = get_text_type_1(question, user)
         reply_markup = get_reply_markup_type_1(question, user, 'delete_information')
+    elif poll_type == Poll2:
+        text_answer = get_text_type_2(question, user)
+        reply_markup = get_reply_markup_type_2(question, user, 'delete_information')
     await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer +
                                        f'\n\n<b><i>Additional information:</i></b>\n'
                                        f'<b><i>Автор:</i></b> {author.name}\n'
@@ -101,5 +111,8 @@ async def delete_information(query, user):
     if poll_type == Poll1:
         text_answer = get_text_type_1(question, user)
         reply_markup = get_reply_markup_type_1(question, user, 'get_information')
+    if poll_type == Poll2:
+        text_answer = get_text_type_2(question, user)
+        reply_markup = get_reply_markup_type_2(question, user, 'get_information')
     await query.edit_message_text(text=f'{question.text_of_question}\n' + text_answer,
                                   parse_mode='HTML', reply_markup=reply_markup)

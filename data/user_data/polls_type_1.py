@@ -1,7 +1,6 @@
 from telegram import *
 from telegram.ext import *
 from data.base import *
-import asyncio
 import sqlite3
 
 
@@ -49,7 +48,6 @@ async def callback_1(query):
     question = db_sess.query(Poll1).filter(Poll1.id == question_id).first()
     user = db_sess.query(OurUser).filter(OurUser.telegram_id == query.message.chat_id).first()
 
-    append_answered_poll(user, question, 1)
     user.balance += question.check_per_person
     db_sess.commit()
 
@@ -64,7 +62,6 @@ async def callback_1(query):
     con.commit()
     con.close()
 
-    text_of_message = query.message.text.split('\n\nAdditional information:\n')[0]
-    await query.edit_message_text(text=f"{text_of_message}\nВы выбрали: <i><b>{answer}</b></i>",
+    await query.edit_message_text(text=f"{question.text_of_question}\n" + get_text_type_1(question, user),
                                   parse_mode='HTML', reply_markup=get_reply_markup_type_1(question, user,
                                                                                           _type='get_information'))
